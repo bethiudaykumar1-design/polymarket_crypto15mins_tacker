@@ -16,4 +16,4 @@ COPY . .
 RUN cargo build --release --jobs 2
 
 # Run the binary
-CMD ["./target/release/one"]
+CMD ["./target/release/crypto_watcher"]
