@@ -173,66 +173,69 @@ impl MarketHandler {
         }
     }
     
+   
     async fn end_current_market(&mut self) {
-        // println!("🏁 {}: Market ending", self.config.symbol);
-        
-        // Get market data before shifting
-        let market_info = if let Some(current) = &self.current_market {
-            let data = current.lock().await;
-            Some((
-                data.symbol.clone(),
-                data.market_id.clone(),
-                data.title.clone(),
-                data.start_up_price,
-                data.start_down_price,
-                data.low_up_price,
-                data.low_down_price,
-                data.last_up_price,
-                data.last_down_price,
-            ))
-        } else {
-            None
-        };
-        
-        // Save to database if available
-        if let Some(db) = &self.db {
-            if let Some((
-                symbol, market_id, title,
-                start_up, start_down, low_up, low_down, last_up, last_down
-            )) = market_info {
-                
-                // Determine result
-                let result = resolve::resolve_result(
-                    &market_id,
-                    last_up,
-                    last_down,
-                ).await;
-                
-                // println!("📊 {}: Result - {}", symbol, result);
-                
-                // Save to database with simplified parameters
-                match db.save_market_result(
-                    &symbol,
-                    &market_id,
-                    &title,
-                    start_up,
-                    start_down,
-                    low_up,
-                    low_down,
-                    last_up,
-                    last_down,
-                    &result,
-                ).await {
-                    Ok(_) => println!("💾 {}: Saved to database", symbol),
-                    Err(e) => eprintln!("❌ {}: Failed to save: {}", symbol, e),
-                }
+    println!("🏁 {}: Market ending", self.config.symbol);
+    
+    // Get market data before shifting
+    let market_info = if let Some(current) = &self.current_market {
+        let data = current.lock().await;
+        Some((
+            data.symbol.clone(),
+            data.market_id.clone(),
+            data.title.clone(),
+            data.start_up_price,
+            data.start_down_price,
+            data.high_up_price,      // Use high instead of low
+            data.high_down_price,    // Use high instead of low
+            data.last_up_price,
+            data.last_down_price,
+        ))
+    } else {
+        None
+    };
+    
+    // Save to database if available
+    if let Some(db) = &self.db {
+        if let Some((
+            symbol, market_id, title,
+            start_up, start_down, high_up, high_down, last_up, last_down
+        )) = market_info {
+            
+            // Determine result
+            let result = resolve::resolve_result(
+                &market_id,
+                last_up,
+                last_down,
+            ).await;
+            
+            println!("📊 {}: Result - {}", symbol, result);
+            println!("📈 {}: High UP: {:.4}, High DOWN: {:.4}", symbol, high_up, high_down);
+            
+            // Save to database
+            match db.save_market_result(
+                &symbol,
+                &market_id,
+                &title,
+                start_up,
+                start_down,
+                high_up,
+                high_down,
+                last_up,
+                last_down,
+                &result,
+            ).await {
+                Ok(_) => println!("💾 {}: Saved to database", symbol),
+                Err(e) => eprintln!("❌ {}: Failed to save: {}", symbol, e),
             }
-        } else {
-            println!("⚠️ {}: No database connection, skipping save", self.config.symbol);
         }
-        
-        self.shift_markets();
+    } else {
+        println!("⚠️ {}: No database connection, skipping save", self.config.symbol);
     }
+    
+    self.shift_markets();
+}
+
     
     fn shift_markets(&mut self) {
         self.current_market = self.next_market.take();

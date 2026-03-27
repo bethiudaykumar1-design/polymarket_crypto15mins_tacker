@@ -1,34 +1,36 @@
+// src/models/market.rs
+
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct MarketData {
-    
-    pub symbol:String,
+    // Identification
+    pub symbol: String,
     pub market_id: String,
     pub slug: String,
     pub title: String,
-
-    // timetracking
-    pub start_ts: i64,         
-    pub end_ts: i64,           
+    
+    // Time tracking
+    pub start_ts: i64,
+    pub end_ts: i64,
     pub interval: i64,
-
-    // Token IDs (for WebSocket)
+    
+    // Token IDs
     pub up_token_id: String,
     pub down_token_id: String,
-
-    // price tracking
+    
+    // Price tracking
     pub start_up_price: f64,
     pub start_down_price: f64,
-    pub low_up_price: f64,     
-    pub low_down_price: f64,   
+    pub high_up_price: f64,      // Replace low with high
+    pub high_down_price: f64,    // Replace low with high
     pub last_up_price: f64,
     pub last_down_price: f64,
-
+    
+    // Result
     pub result: Option<String>,
 }
-
 
 impl MarketData {
     pub fn new(
@@ -43,8 +45,8 @@ impl MarketData {
         down_token_id: String,
         start_up_price: f64,
         start_down_price: f64,
-    )->Self {
-        Self { 
+    ) -> Self {
+        Self {
             symbol,
             market_id,
             slug,
@@ -56,26 +58,25 @@ impl MarketData {
             down_token_id,
             start_up_price,
             start_down_price,
-            low_up_price: start_up_price,
-            low_down_price: start_down_price,
+            high_up_price: start_up_price,   // Track highest
+            high_down_price: start_down_price, // Track highest
             last_up_price: start_up_price,
             last_down_price: start_down_price,
             result: None,
-
         }
-
     }
-
-    // update prices from ws
-    pub fn update_prices(&mut self,up:f64,down:f64){
-        self.last_up_price=up;
-        self.last_down_price=down;
-
-        if up < self.low_up_price {
-            self.low_up_price=up;
+    
+    pub fn update_prices(&mut self, up: f64, down: f64) {
+        self.last_up_price = up;
+        self.last_down_price = down;
+        
+        // Track highs (replace lows)
+        if up > self.high_up_price {
+            self.high_up_price = up;
         }
-        if down<self.low_down_price {
-            self.low_down_price=down;
+        
+        if down > self.high_down_price {
+            self.high_down_price = down;
         }
     }
 }

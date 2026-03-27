@@ -14,7 +14,7 @@ impl Database {
             .connect(database_url)
             .await?;
         
-        // Create simplified table without start_ts, end_ts, interval_seconds, created_at
+        // Create table with high prices instead of low prices
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS market_results (
@@ -24,8 +24,8 @@ impl Database {
                 title VARCHAR(255) NOT NULL,
                 start_up_price DOUBLE PRECISION NOT NULL,
                 start_down_price DOUBLE PRECISION NOT NULL,
-                low_up_price DOUBLE PRECISION NOT NULL,
-                low_down_price DOUBLE PRECISION NOT NULL,
+                high_up_price DOUBLE PRECISION NOT NULL,
+                high_down_price DOUBLE PRECISION NOT NULL,
                 last_up_price DOUBLE PRECISION NOT NULL,
                 last_down_price DOUBLE PRECISION NOT NULL,
                 result VARCHAR(10) NOT NULL
@@ -45,8 +45,8 @@ impl Database {
         title: &str,
         start_up: f64,
         start_down: f64,
-        low_up: f64,
-        low_down: f64,
+        high_up: f64,
+        high_down: f64,
         last_up: f64,
         last_down: f64,
         result: &str,
@@ -56,7 +56,7 @@ impl Database {
             INSERT INTO market_results (
                 symbol, market_id, title,
                 start_up_price, start_down_price,
-                low_up_price, low_down_price,
+                high_up_price, high_down_price,
                 last_up_price, last_down_price,
                 result
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -67,8 +67,8 @@ impl Database {
         .bind(title)
         .bind(start_up)
         .bind(start_down)
-        .bind(low_up)
-        .bind(low_down)
+        .bind(high_up)
+        .bind(high_down)
         .bind(last_up)
         .bind(last_down)
         .bind(result)
