@@ -175,7 +175,7 @@ impl MarketHandler {
     
    
     async fn end_current_market(&mut self) {
-    println!("🏁 {}: Market ending", self.config.symbol);
+    // println!("🏁 {}: Market ending", self.config.symbol);
     
     // Get market data before shifting
     let market_info = if let Some(current) = &self.current_market {
