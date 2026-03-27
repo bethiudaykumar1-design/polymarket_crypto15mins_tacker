@@ -209,8 +209,8 @@ impl MarketHandler {
                 last_down,
             ).await;
             
-            println!("📊 {}: Result - {}", symbol, result);
-            println!("📈 {}: High UP: {:.4}, High DOWN: {:.4}", symbol, high_up, high_down);
+            // println!("📊 {}: Result - {}", symbol, result);
+            // println!("📈 {}: High UP: {:.4}, High DOWN: {:.4}", symbol, high_up, high_down);
             
             // Save to database
             match db.save_market_result(
