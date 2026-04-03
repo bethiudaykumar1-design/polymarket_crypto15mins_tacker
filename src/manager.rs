@@ -174,22 +174,21 @@ impl MarketHandler {
     }
     
    
-    async fn end_current_market(&mut self) {
+   async fn end_current_market(&mut self) {
     // println!("🏁 {}: Market ending", self.config.symbol);
     
-    // Get market data before shifting
+    // Get market data before shifting - use clone() to avoid moving
     let market_info = if let Some(current) = &self.current_market {
         let data = current.lock().await;
         Some((
             data.symbol.clone(),
             data.market_id.clone(),
             data.title.clone(),
-            data.start_up_price,
-            data.start_down_price,
-            data.high_up_price,      // Use high instead of low
-            data.high_down_price,    // Use high instead of low
             data.last_up_price,
             data.last_down_price,
+            data.side_below_30.clone(),  // Clone instead of moving
+            data.minutes_left_at_below_30,
+            data.high_from_30,
         ))
     } else {
         None
@@ -199,7 +198,8 @@ impl MarketHandler {
     if let Some(db) = &self.db {
         if let Some((
             symbol, market_id, title,
-            start_up, start_down, high_up, high_down, last_up, last_down
+            last_up, last_down,
+            side_below_30, minutes_left, high_from_30
         )) = market_info {
             
             // Determine result
@@ -210,22 +210,30 @@ impl MarketHandler {
             ).await;
             
             // println!("📊 {}: Result - {}", symbol, result);
-            // println!("📈 {}: High UP: {:.4}, High DOWN: {:.4}", symbol, high_up, high_down);
             
-            // Save to database
+            // Use reference to side_below_30 instead of moving
+            // if let Some(ref side) = side_below_30 {
+            //     println!("📈 {}: {} bounced from below 30% to {:.4}", 
+            //         symbol, side, high_from_30);
+            //     println!("⏰ {}: Dropped below 30% with {} minutes left", 
+            //         symbol, minutes_left.unwrap_or(0));
+            // } else {
+            //     println!("📊 {}: No side dropped below 30%", symbol);
+            // }
+            
+            // Save to database - pass reference
             match db.save_market_result(
                 &symbol,
                 &market_id,
                 &title,
-                start_up,
-                start_down,
-                high_up,
-                high_down,
                 last_up,
                 last_down,
+                side_below_30.as_ref(),  // Pass as Option<&String>
+                minutes_left,
+                high_from_30,
                 &result,
             ).await {
-                Ok(_) => println!("💾 {}: Saved to database", symbol),
+                Ok(_) => {},
                 Err(e) => eprintln!("❌ {}: Failed to save: {}", symbol, e),
             }
         }

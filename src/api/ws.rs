@@ -112,8 +112,10 @@ pub async fn start_ws(
                                 
 
                                 // Update market data with new prices
+                               let now = crate::utils::time::now_ts();
                                 let mut data = market_data.lock().await;
-                                data.update_prices(*up_price, *down_price);
+                                data.update_prices(*up_price, *down_price, now);
+
                                 
                                 // Optional: Print every 10th update to avoid spam
                                 // You can uncomment for debugging

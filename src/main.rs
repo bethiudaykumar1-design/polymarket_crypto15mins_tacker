@@ -10,7 +10,7 @@ mod models;
 mod manager;
 mod db;
 
-use manager::MarketManager;
+use crate::manager::MarketManager;
 
 #[tokio::main]
 async fn main() {

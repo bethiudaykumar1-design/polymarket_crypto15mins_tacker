@@ -14,20 +14,19 @@ impl Database {
             .connect(database_url)
             .await?;
         
-        // Create table with high prices instead of low prices
+        // New schema - track only one side that drops below 30%
         sqlx::query(
             r#"
-            CREATE TABLE IF NOT EXISTS market_results (
+            CREATE TABLE IF NOT EXISTS crypto (
                 id SERIAL PRIMARY KEY,
                 symbol VARCHAR(10) NOT NULL,
                 market_id VARCHAR(100) NOT NULL,
                 title VARCHAR(255) NOT NULL,
-                start_up_price DOUBLE PRECISION NOT NULL,
-                start_down_price DOUBLE PRECISION NOT NULL,
-                high_up_price DOUBLE PRECISION NOT NULL,
-                high_down_price DOUBLE PRECISION NOT NULL,
                 last_up_price DOUBLE PRECISION NOT NULL,
                 last_down_price DOUBLE PRECISION NOT NULL,
+                side_below_30 VARCHAR(5),  -- "UP" or "DOWN"
+                minutes_left_at_below_30 INT,
+                high_from_30 DOUBLE PRECISION DEFAULT 0.0,
                 result VARCHAR(10) NOT NULL
             )
             "#,
@@ -39,42 +38,39 @@ impl Database {
     }
     
     pub async fn save_market_result(
-        &self,
-        symbol: &str,
-        market_id: &str,
-        title: &str,
-        start_up: f64,
-        start_down: f64,
-        high_up: f64,
-        high_down: f64,
-        last_up: f64,
-        last_down: f64,
-        result: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"
-            INSERT INTO market_results (
-                symbol, market_id, title,
-                start_up_price, start_down_price,
-                high_up_price, high_down_price,
-                last_up_price, last_down_price,
-                result
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            "#,
-        )
-        .bind(symbol)
-        .bind(market_id)
-        .bind(title)
-        .bind(start_up)
-        .bind(start_down)
-        .bind(high_up)
-        .bind(high_down)
-        .bind(last_up)
-        .bind(last_down)
-        .bind(result)
-        .execute(&self.pool)
-        .await?;
-        
-        Ok(())
-    }
+    &self,
+    symbol: &str,
+    market_id: &str,
+    title: &str,
+    last_up_price: f64,
+    last_down_price: f64,
+    side_below_30: Option<&String>,  // Accept reference
+    minutes_left_at_below_30: Option<i32>,
+    high_from_30: f64,
+    result: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO crypto (
+            symbol, market_id, title,
+            last_up_price, last_down_price,
+            side_below_30, minutes_left_at_below_30, high_from_30,
+            result
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        "#,
+    )
+    .bind(symbol)
+    .bind(market_id)
+    .bind(title)
+    .bind(last_up_price)
+    .bind(last_down_price)
+    .bind(side_below_30)  // Option<&String> works with sqlx
+    .bind(minutes_left_at_below_30)
+    .bind(high_from_30)
+    .bind(result)
+    .execute(&self.pool)
+    .await?;
+    
+    Ok(())
+}
 }

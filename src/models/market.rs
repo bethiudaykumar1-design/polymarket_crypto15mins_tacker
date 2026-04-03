@@ -20,13 +20,14 @@ pub struct MarketData {
     pub up_token_id: String,
     pub down_token_id: String,
     
-    // Price tracking
-    pub start_up_price: f64,
-    pub start_down_price: f64,
-    pub high_up_price: f64,      // Replace low with high
-    pub high_down_price: f64,    // Replace low with high
+    // Current prices
     pub last_up_price: f64,
     pub last_down_price: f64,
+    
+    // Track 30% bounce (only one side)
+    pub side_below_30: Option<String>,  // "UP" or "DOWN"
+    pub minutes_left_at_below_30: Option<i32>,
+    pub high_from_30: f64,
     
     // Result
     pub result: Option<String>,
@@ -56,27 +57,55 @@ impl MarketData {
             interval,
             up_token_id,
             down_token_id,
-            start_up_price,
-            start_down_price,
-            high_up_price: start_up_price,   // Track highest
-            high_down_price: start_down_price, // Track highest
             last_up_price: start_up_price,
             last_down_price: start_down_price,
+            side_below_30: None,
+            minutes_left_at_below_30: None,
+            high_from_30: 0.0,
             result: None,
         }
     }
     
-    pub fn update_prices(&mut self, up: f64, down: f64) {
+    pub fn update_prices(&mut self, up: f64, down: f64, now_ts: i64) {
         self.last_up_price = up;
         self.last_down_price = down;
         
-        // Track highs (replace lows)
-        if up > self.high_up_price {
-            self.high_up_price = up;
+        // Only track if we haven't already recorded a below-30 event
+        if self.side_below_30.is_none() {
+            let mut side: Option<String> = None;
+            let mut price_at_below: f64 = 0.0;
+            
+            // Check UP below 30%
+            if up < 0.30 {
+                side = Some("UP".to_string());
+                price_at_below = up;
+            }
+            // Check DOWN below 30%
+            else if down < 0.30 {
+                side = Some("DOWN".to_string());
+                price_at_below = down;
+            }
+            
+            if let Some(side_str) = side {
+                let minutes_left = (self.end_ts - now_ts) / 60;
+                self.side_below_30 = Some(side_str.clone());
+                self.minutes_left_at_below_30 = Some(minutes_left as i32);
+                self.high_from_30 = price_at_below;
+                
+                // println!("📉 {}: {} dropped below 30% at {:.4}", 
+                //     self.symbol, side_str, price_at_below);
+                // println!("⏰ {}: {} minutes left in market", self.symbol, minutes_left);
+            }
         }
         
-        if down > self.high_down_price {
-            self.high_down_price = down;
+        // Track bounce if we have a recorded side
+        if let Some(ref side) = self.side_below_30 {
+            let current_price = if side == "UP" { up } else { down };
+            
+            if current_price > self.high_from_30 {
+                self.high_from_30 = current_price;
+                // println!("📈 {}: {} bounced to {:.4}", self.symbol, side, current_price);
+            }
         }
     }
 }
