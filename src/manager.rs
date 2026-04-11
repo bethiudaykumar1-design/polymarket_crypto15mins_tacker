@@ -173,11 +173,10 @@ impl MarketHandler {
         }
     }
     
-   
    async fn end_current_market(&mut self) {
     // println!("🏁 {}: Market ending", self.config.symbol);
     
-    // Get market data before shifting - use clone() to avoid moving
+    // Get market data before shifting
     let market_info = if let Some(current) = &self.current_market {
         let data = current.lock().await;
         Some((
@@ -186,9 +185,16 @@ impl MarketHandler {
             data.title.clone(),
             data.last_up_price,
             data.last_down_price,
-            data.side_below_30.clone(),  // Clone instead of moving
-            data.minutes_left_at_below_30,
-            data.high_from_30,
+            // UP data
+            data.up_035, data.up_030, data.up_025, data.up_020, data.up_015, data.up_010,
+            data.up_from_035, data.up_from_030, data.up_from_025, data.up_from_020, data.up_from_015, data.up_from_010,
+            data.up_minutes_035, data.up_minutes_030, data.up_minutes_025,
+            data.up_minutes_020, data.up_minutes_015, data.up_minutes_010,
+            // DOWN data
+            data.down_035, data.down_030, data.down_025, data.down_020, data.down_015, data.down_010,
+            data.down_from_035, data.down_from_030, data.down_from_025, data.down_from_020, data.down_from_015, data.down_from_010,
+            data.down_minutes_035, data.down_minutes_030, data.down_minutes_025,
+            data.down_minutes_020, data.down_minutes_015, data.down_minutes_010,
         ))
     } else {
         None
@@ -197,48 +203,50 @@ impl MarketHandler {
     // Save to database if available
     if let Some(db) = &self.db {
         if let Some((
-            symbol, market_id, title,
-            last_up, last_down,
-            side_below_30, minutes_left, high_from_30
+            symbol, market_id, title, last_up, last_down,
+            up_035, up_030, up_025, up_020, up_015, up_010,
+            up_from_035, up_from_030, up_from_025, up_from_020, up_from_015, up_from_010,
+            up_minutes_035, up_minutes_030, up_minutes_025, up_minutes_020, up_minutes_015, up_minutes_010,
+            down_035, down_030, down_025, down_020, down_015, down_010,
+            down_from_035, down_from_030, down_from_025, down_from_020, down_from_015, down_from_010,
+            down_minutes_035, down_minutes_030, down_minutes_025, down_minutes_020, down_minutes_015, down_minutes_010,
         )) = market_info {
             
             // Determine result
-            let result = resolve::resolve_result(
-                &market_id,
-                last_up,
-                last_down,
-            ).await;
+            let result = resolve::resolve_result(&market_id, last_up, last_down).await;
             
             // println!("📊 {}: Result - {}", symbol, result);
             
-            // Use reference to side_below_30 instead of moving
-            // if let Some(ref side) = side_below_30 {
-            //     println!("📈 {}: {} bounced from below 30% to {:.4}", 
-            //         symbol, side, high_from_30);
-            //     println!("⏰ {}: Dropped below 30% with {} minutes left", 
-            //         symbol, minutes_left.unwrap_or(0));
-            // } else {
-            //     println!("📊 {}: No side dropped below 30%", symbol);
-            // }
+            // Print UP dips summary
+            // if up_035 { println!("📈 {}: UP dipped below 0.35, bounced to {:.4}", symbol, up_from_035); }
+            // if up_030 { println!("📈 {}: UP dipped below 0.30, bounced to {:.4}", symbol, up_from_030); }
+            // if up_025 { println!("📈 {}: UP dipped below 0.25, bounced to {:.4}", symbol, up_from_025); }
+            // if up_020 { println!("📈 {}: UP dipped below 0.20, bounced to {:.4}", symbol, up_from_020); }
+            // if up_015 { println!("📈 {}: UP dipped below 0.15, bounced to {:.4}", symbol, up_from_015); }
+            // if up_010 { println!("📈 {}: UP dipped below 0.10, bounced to {:.4}", symbol, up_from_010); }
             
-            // Save to database - pass reference
+            // Print DOWN dips summary
+            // if down_035 { println!("📉 {}: DOWN dipped below 0.35, bounced to {:.4}", symbol, down_from_035); }
+            // if down_030 { println!("📉 {}: DOWN dipped below 0.30, bounced to {:.4}", symbol, down_from_030); }
+            // if down_025 { println!("📉 {}: DOWN dipped below 0.25, bounced to {:.4}", symbol, down_from_025); }
+            // if down_020 { println!("📉 {}: DOWN dipped below 0.20, bounced to {:.4}", symbol, down_from_020); }
+            // if down_015 { println!("📉 {}: DOWN dipped below 0.15, bounced to {:.4}", symbol, down_from_015); }
+            // if down_010 { println!("📉 {}: DOWN dipped below 0.10, bounced to {:.4}", symbol, down_from_010); }
+            
+            // Save to database
             match db.save_market_result(
-                &symbol,
-                &market_id,
-                &title,
-                last_up,
-                last_down,
-                side_below_30.as_ref(),  // Pass as Option<&String>
-                minutes_left,
-                high_from_30,
-                &result,
+                &symbol, &market_id, &title, last_up, last_down, &result,
+                up_035, up_030, up_025, up_020, up_015, up_010,
+                up_from_035, up_from_030, up_from_025, up_from_020, up_from_015, up_from_010,
+                up_minutes_035, up_minutes_030, up_minutes_025, up_minutes_020, up_minutes_015, up_minutes_010,
+                down_035, down_030, down_025, down_020, down_015, down_010,
+                down_from_035, down_from_030, down_from_025, down_from_020, down_from_015, down_from_010,
+                down_minutes_035, down_minutes_030, down_minutes_025, down_minutes_020, down_minutes_015, down_minutes_010,
             ).await {
                 Ok(_) => {},
                 Err(e) => eprintln!("❌ {}: Failed to save: {}", symbol, e),
             }
         }
-    } else {
-        println!("⚠️ {}: No database connection, skipping save", self.config.symbol);
     }
     
     self.shift_markets();
